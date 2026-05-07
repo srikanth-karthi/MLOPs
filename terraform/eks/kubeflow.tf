@@ -51,11 +51,13 @@ resource "kubernetes_secret" "cache_server_tls" {
 
 resource "null_resource" "compile_pipeline" {
   triggers = {
-    pipeline_hash = filesha256("${path.module}/../../5_pipeline/pipeline.py")
-    train_hash    = filesha256("${path.module}/../../5_pipeline/components/train_component.py")
-    evaluate_hash = filesha256("${path.module}/../../5_pipeline/components/evaluate_component.py")
-    register_hash = filesha256("${path.module}/../../5_pipeline/components/register_component.py")
-    deploy_hash   = filesha256("${path.module}/../../5_pipeline/components/deploy_component.py")
+    pipeline_hash       = filesha256("${path.module}/../../5_pipeline/pipeline.py")
+    tune_hash           = filesha256("${path.module}/../../5_pipeline/components/tune_component.py")
+    train_hash          = filesha256("${path.module}/../../5_pipeline/components/train_component.py")
+    evaluate_hash       = filesha256("${path.module}/../../5_pipeline/components/evaluate_component.py")
+    mlflow_eval_hash    = filesha256("${path.module}/../../5_pipeline/components/mlflow_evaluate_component.py")
+    register_hash       = filesha256("${path.module}/../../5_pipeline/components/register_component.py")
+    deploy_hash         = filesha256("${path.module}/../../5_pipeline/components/deploy_component.py")
   }
 
   provisioner "local-exec" {
