@@ -76,8 +76,12 @@ def train(
     elif model_type == "lgbm":
         from lightgbm import LGBMClassifier
         model = LGBMClassifier(**base_params)
+    elif model_type == "lr":
+        from sklearn.linear_model import LogisticRegression
+        lr_params = {k: v for k, v in base_params.items() if k in ("class_weight", "random_state")}
+        model = LogisticRegression(max_iter=1000, solver="lbfgs", **lr_params)
     else:
-        raise ValueError(f"Unknown model_type '{model_type}'. Choose: rf, xgb, lgbm")
+        raise ValueError(f"Unknown model_type '{model_type}'. Choose: rf, xgb, lgbm, lr")
 
     model.fit(X_res, y_res)
 

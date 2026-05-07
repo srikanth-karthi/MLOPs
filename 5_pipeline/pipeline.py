@@ -63,6 +63,7 @@ def fraud_detection_pipeline(
         s3_bucket=s3_bucket,
         aws_region=aws_region,
         s3_data_key=s3_data_key,
+        model_type=model_type,
         n_iter=tune_n_iter,
         n_estimators_options=n_estimators_options,
         max_depth_options=max_depth_options,
