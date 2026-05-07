@@ -93,8 +93,8 @@ module "eks" {
       }
 
       tags = {
-        NodeGroup                                      = "ml-training"
-        "k8s.io/cluster-autoscaler/enabled"           = "true"
+        NodeGroup                                       = "ml-training"
+        "k8s.io/cluster-autoscaler/enabled"             = "true"
         "k8s.io/cluster-autoscaler/${var.cluster_name}" = "owned"
       }
     }
