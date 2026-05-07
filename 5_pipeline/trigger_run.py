@@ -6,6 +6,8 @@ Usage:
 """
 
 import os
+from datetime import datetime
+
 import kfp
 
 KFP_ENDPOINT = os.environ.get(
@@ -13,25 +15,30 @@ KFP_ENDPOINT = os.environ.get(
     "http://a9874180177eb41338621ad756a39fb9-576280531.us-east-1.elb.amazonaws.com",
 )
 
+PIPELINE_NAME = "fraud-detection-pipeline"
+
 client = kfp.Client(host=KFP_ENDPOINT)
 
-pipelines = client.list_pipelines(page_size=10)
+pipelines = client.list_pipelines(page_size=100)
 pipeline_id = None
-for p in pipelines.pipelines or []:
-    if p.display_name == "fraud-detection-pipeline":
+for p in (pipelines.pipelines or []):
+    if p.display_name == PIPELINE_NAME:
         pipeline_id = p.pipeline_id
         break
 
 if not pipeline_id:
-    raise RuntimeError("Pipeline 'fraud-detection-pipeline' not found — run upload_pipeline.py first")
+    raise RuntimeError(f"Pipeline '{PIPELINE_NAME}' not found — run upload_pipeline.py first")
 
 print(f"Found pipeline: {pipeline_id}")
 
+versions = client.list_pipeline_versions(pipeline_id=pipeline_id, page_size=1)
+version_id = versions.pipeline_versions[0].pipeline_version_id if versions.pipeline_versions else None
+
 experiment = client.create_experiment(name="fraud-detection")
 
-arguments = {
+params = {
     "n_estimators":         100,
-    "model_type":           "rf",   # rf | xgb | lgbm
+    "model_type":           "rf",   # rf | xgb | lgbm | lr
     "min_auprc":            0.75,
     "threshold":            0.5,
     "s3_data_key":          "data/creditcard.csv",
@@ -42,11 +49,12 @@ arguments = {
     "max_depth_options":    "10,20,30",
 }
 
-run = client.create_run_from_pipeline_package(
-    pipeline_file="compiled/pipeline.yaml",
-    arguments=arguments,
-    run_name=f"fraud-detection-run-{__import__('datetime').datetime.now().strftime('%Y%m%d-%H%M%S')}",
+run = client.run_pipeline(
     experiment_id=experiment.experiment_id,
+    job_name=f"fraud-detection-run-{datetime.now().strftime('%Y%m%d-%H%M%S')}",
+    pipeline_id=pipeline_id,
+    version_id=version_id,
+    params=params,
     enable_caching=False,
 )
 print(f"Run started: {run.run_id}")

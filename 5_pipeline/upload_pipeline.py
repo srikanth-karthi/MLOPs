@@ -46,13 +46,13 @@ else:
 
 experiment = client.create_experiment(name="fraud-detection")
 
-# Run from registered pipeline ID so artifacts are linked in MLMD
-run = client.create_run_from_pipeline_id(
+# run_pipeline links the run to the registered pipeline ID in MLMD
+run = client.run_pipeline(
+    experiment_id=experiment.experiment_id,
+    job_name=f"fraud-detection-run-{datetime.now().strftime('%Y%m%d-%H%M%S')}",
     pipeline_id=pipeline_id,
     version_id=version_id,
-    arguments={"n_estimators": 100, "min_auprc": 0.75},
-    run_name=f"fraud-detection-run-{datetime.now().strftime('%Y%m%d-%H%M%S')}",
-    experiment_id=experiment.experiment_id,
+    params={"n_estimators": 100, "min_auprc": 0.75},
     enable_caching=False,
 )
 print(f"Run started: {run.run_id}")
