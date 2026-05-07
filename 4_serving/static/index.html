@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Fraud Detection</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f0f2f5;
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 40px 16px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.10);
+      padding: 36px 40px;
+      width: 100%;
+      max-width: 700px;
+    }
+
+    h1 { font-size: 1.5rem; font-weight: 700; color: #1a1a2e; margin-bottom: 4px; }
+    .subtitle { color: #6b7280; font-size: 0.875rem; margin-bottom: 28px; }
+
+    .scenarios {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+
+    .scenario-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+    }
+
+    .scenario-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    .scenario-btn {
+      padding: 9px 14px;
+      border-radius: 8px;
+      border: 1.5px solid transparent;
+      cursor: pointer;
+      font-size: 0.82rem;
+      font-weight: 600;
+      text-align: left;
+      transition: all 0.15s;
+      line-height: 1.3;
+    }
+    .scenario-btn:hover { opacity: 0.85; transform: translateY(-1px); }
+    .scenario-btn.legit { background: #f0fdf4; border-color: #86efac; color: #065f46; }
+    .scenario-btn.fraud { background: #fef2f2; border-color: #fca5a5; color: #991b1b; }
+    .scenario-btn.active { box-shadow: 0 0 0 3px rgba(99,102,241,0.25); border-color: #6366f1; }
+
+    .scenario-btn .s-title { font-size: 0.85rem; }
+    .scenario-btn .s-sub   { font-size: 0.75rem; opacity: 0.7; font-weight: 400; }
+
+    hr { border: none; border-top: 1px solid #f3f4f6; margin: 24px 0; }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #6b7280;
+      margin-bottom: 5px;
+    }
+
+    .field input, .field select {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 7px;
+      font-size: 0.875rem;
+      color: #111827;
+      background: #fff;
+      transition: border-color 0.2s;
+    }
+    .field input:focus, .field select:focus {
+      outline: none;
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
+    }
+    .field input[readonly] { background: #f9fafb; color: #6b7280; }
+
+    .submit-btn {
+      width: 100%;
+      padding: 13px;
+      background: #6366f1;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .submit-btn:hover { background: #4f46e5; }
+    .submit-btn:disabled { background: #a5b4fc; cursor: not-allowed; }
+
+    .result {
+      margin-top: 20px;
+      padding: 20px 24px;
+      border-radius: 10px;
+      display: none;
+    }
+    .result.fraud { background: #fef2f2; border: 1.5px solid #fca5a5; }
+    .result.legit { background: #f0fdf4; border: 1.5px solid #86efac; }
+
+    .result-label { font-size: 1.1rem; font-weight: 700; margin-bottom: 10px; }
+    .fraud .result-label { color: #dc2626; }
+    .legit .result-label { color: #16a34a; }
+
+    .prob-bar-wrap {
+      background: #e5e7eb;
+      border-radius: 999px;
+      height: 10px;
+      margin-bottom: 8px;
+      overflow: hidden;
+    }
+    .prob-bar { height: 100%; border-radius: 999px; transition: width 0.5s ease; }
+    .fraud .prob-bar { background: #ef4444; }
+    .legit .prob-bar { background: #22c55e; }
+
+    .prob-text { font-size: 0.875rem; color: #6b7280; }
+
+    .error-msg {
+      margin-top: 14px;
+      padding: 12px 16px;
+      background: #fff7ed;
+      border: 1px solid #fdba74;
+      border-radius: 8px;
+      color: #c2410c;
+      font-size: 0.875rem;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h1>Credit Card Fraud Detector</h1>
+  <p class="subtitle">Select a transaction scenario or fill in the details manually.</p>
+
+  <!-- Scenario picker -->
+  <div class="scenarios">
+    <div class="scenario-label">Legitimate Transactions</div>
+    <div class="scenario-row">
+      <button class="scenario-btn legit" onclick="loadScenario(0)">
+        <div class="s-title">🛒 Grocery Store</div>
+        <div class="s-sub">€149.62 · Cardholder present</div>
+      </button>
+      <button class="scenario-btn legit" onclick="loadScenario(1)">
+        <div class="s-title">☕ Coffee Shop</div>
+        <div class="s-sub">€2.69 · Contactless</div>
+      </button>
+      <button class="scenario-btn legit" onclick="loadScenario(2)">
+        <div class="s-title">✈️ Travel Booking</div>
+        <div class="s-sub">€378.66 · Online</div>
+      </button>
+    </div>
+
+    <div class="scenario-label" style="margin-top:8px">Suspicious Transactions</div>
+    <div class="scenario-row">
+      <button class="scenario-btn fraud" onclick="loadScenario(3)">
+        <div class="s-title">⚠️ Unknown Merchant</div>
+        <div class="s-sub">€0.00 · Card not present</div>
+      </button>
+      <button class="scenario-btn fraud" onclick="loadScenario(4)">
+        <div class="s-title">⚠️ Electronics Store</div>
+        <div class="s-sub">€529.00 · Unusual location</div>
+      </button>
+      <button class="scenario-btn fraud" onclick="loadScenario(5)">
+        <div class="s-title">⚠️ Online Transfer</div>
+        <div class="s-sub">€239.93 · Foreign IP</div>
+      </button>
+    </div>
+  </div>
+
+  <hr/>
+
+  <p style="font-size:0.78rem;color:#9ca3af;margin-bottom:16px;">
+    Select a risk pattern above, then edit the transaction details below. Amount directly affects the model score.
+  </p>
+
+  <!-- Human-readable form fields -->
+  <div class="form-grid">
+    <div class="field">
+      <label>Card Number</label>
+      <input type="text" id="ui_card" placeholder="**** **** **** 4242"/>
+    </div>
+    <div class="field">
+      <label>Transaction Amount (€) <span style="color:#6366f1">★ affects model</span></label>
+      <input type="number" id="ui_amount" placeholder="0.00" step="0.01" oninput="syncAmount()"/>
+    </div>
+    <div class="field">
+      <label>Merchant</label>
+      <input type="text" id="ui_merchant" placeholder="e.g. Amazon"/>
+    </div>
+    <div class="field">
+      <label>Category</label>
+      <input type="text" id="ui_category" placeholder="e.g. Groceries"/>
+    </div>
+    <div class="field">
+      <label>Location</label>
+      <input type="text" id="ui_location" placeholder="City, Country"/>
+    </div>
+    <div class="field">
+      <label>Time of Day</label>
+      <input type="text" id="ui_time" placeholder="e.g. 14:32"/>
+    </div>
+  </div>
+
+  <button class="submit-btn" id="analyseBtn" onclick="analyse()">Analyse Transaction</button>
+
+  <div class="result" id="result">
+    <div class="result-label" id="result-label"></div>
+    <div class="prob-bar-wrap">
+      <div class="prob-bar" id="prob-bar" style="width:0%"></div>
+    </div>
+    <div class="prob-text" id="prob-text"></div>
+  </div>
+
+  <div class="error-msg" id="error-msg"></div>
+</div>
+
+<script>
+  const API = "http://a7f49691a4a914e82be93a54bdc9a8d5-1802055095.us-east-1.elb.amazonaws.com/predict";
+
+  const SCENARIOS = [
+    {
+      label: "Grocery Store", category: "Groceries",
+      merchant: "Carrefour Supermarket", location: "Brussels, Belgium",
+      card: "**** **** **** 4821", time: "14:32",
+      data: {"Time":0,"V1":-1.359807,"V2":-0.072781,"V3":2.536347,"V4":1.378155,"V5":-0.338321,"V6":0.462388,"V7":0.239599,"V8":0.098698,"V9":0.363787,"V10":0.090794,"V11":-0.5516,"V12":-0.617801,"V13":-0.99139,"V14":-0.311169,"V15":1.468177,"V16":-0.470401,"V17":0.207971,"V18":0.025791,"V19":0.403993,"V20":0.251412,"V21":-0.018307,"V22":0.277838,"V23":-0.110474,"V24":0.066928,"V25":0.128539,"V26":-0.189115,"V27":0.133558,"V28":-0.021053,"Amount":149.62}
+    },
+    {
+      label: "Coffee Shop", category: "Food & Drink",
+      merchant: "Costa Coffee", location: "London, UK",
+      card: "**** **** **** 3317", time: "08:15",
+      data: {"Time":0,"V1":1.191857,"V2":0.266151,"V3":0.16648,"V4":0.448154,"V5":0.060018,"V6":-0.082361,"V7":-0.078803,"V8":0.085102,"V9":-0.255425,"V10":-0.166974,"V11":1.612727,"V12":1.065235,"V13":0.489095,"V14":-0.143772,"V15":0.635558,"V16":0.463917,"V17":-0.114805,"V18":-0.183361,"V19":-0.145783,"V20":-0.069083,"V21":-0.225775,"V22":-0.638672,"V23":0.101288,"V24":-0.339846,"V25":0.16717,"V26":0.125895,"V27":-0.008983,"V28":0.014724,"Amount":2.69}
+    },
+    {
+      label: "Travel Booking", category: "Travel",
+      merchant: "Booking.com", location: "Amsterdam, Netherlands",
+      card: "**** **** **** 9043", time: "21:05",
+      data: {"Time":1,"V1":-1.358354,"V2":-1.340163,"V3":1.773209,"V4":0.37978,"V5":-0.503198,"V6":1.800499,"V7":0.791461,"V8":0.247676,"V9":-1.514654,"V10":0.207643,"V11":0.624501,"V12":0.066084,"V13":0.717293,"V14":-0.165946,"V15":2.345865,"V16":-2.890083,"V17":1.109969,"V18":-0.121359,"V19":-2.261857,"V20":0.52498,"V21":0.247998,"V22":0.771679,"V23":0.909412,"V24":-0.689281,"V25":-0.327642,"V26":-0.139097,"V27":-0.055353,"V28":-0.059752,"Amount":378.66}
+    },
+    {
+      label: "Unknown Merchant", category: "Unclassified",
+      merchant: "Unknown — Card Not Present", location: "Unknown",
+      card: "**** **** **** 4821", time: "00:06",
+      data: {"Time":406,"V1":-2.312227,"V2":1.951992,"V3":-1.609851,"V4":3.997906,"V5":-0.522188,"V6":-1.426545,"V7":-2.537387,"V8":1.391657,"V9":-2.770089,"V10":-2.772272,"V11":3.202033,"V12":-2.899907,"V13":-0.595222,"V14":-4.289254,"V15":0.389724,"V16":-1.140747,"V17":-2.830056,"V18":-0.016822,"V19":0.416956,"V20":0.126911,"V21":0.517232,"V22":-0.035049,"V23":-0.465211,"V24":0.320198,"V25":0.044519,"V26":0.17784,"V27":0.261145,"V28":-0.143276,"Amount":0.0}
+    },
+    {
+      label: "Electronics Store", category: "Electronics",
+      merchant: "MediaMarkt — Unusual Location", location: "Lagos, Nigeria",
+      card: "**** **** **** 3317", time: "00:07",
+      data: {"Time":472,"V1":-3.043541,"V2":-3.157307,"V3":1.088463,"V4":2.288644,"V5":1.359805,"V6":-1.064823,"V7":0.325574,"V8":-0.067794,"V9":-0.270953,"V10":-0.838587,"V11":-0.414575,"V12":-0.503141,"V13":0.676502,"V14":-1.692029,"V15":2.000635,"V16":0.66678,"V17":0.599717,"V18":1.725321,"V19":0.283345,"V20":2.102339,"V21":0.661696,"V22":0.435477,"V23":1.375966,"V24":-0.293803,"V25":0.279798,"V26":-0.145362,"V27":-0.252773,"V28":0.035764,"Amount":529.0}
+    },
+    {
+      label: "Online Transfer", category: "Wire Transfer",
+      merchant: "International Transfer — Foreign IP", location: "Eastern Europe",
+      card: "**** **** **** 9043", time: "01:14",
+      data: {"Time":4462,"V1":-2.30335,"V2":1.759247,"V3":-0.359745,"V4":2.330243,"V5":-0.821628,"V6":-0.075788,"V7":0.56232,"V8":-0.399147,"V9":-0.238253,"V10":-1.525412,"V11":2.032912,"V12":-6.560124,"V13":0.022937,"V14":-1.470102,"V15":-0.698826,"V16":-2.282194,"V17":-4.781831,"V18":-2.615665,"V19":-1.334441,"V20":-0.430022,"V21":-0.294166,"V22":-0.932391,"V23":0.172726,"V24":-0.08733,"V25":-0.156114,"V26":-0.542628,"V27":0.039566,"V28":-0.153029,"Amount":239.93}
+    }
+  ];
+
+  let currentPayload = null;
+  let activeBtn = null;
+
+  function loadScenario(i) {
+    const s = SCENARIOS[i];
+    currentPayload = s.data;
+
+    document.getElementById("ui_card").value     = s.card;
+    document.getElementById("ui_amount").value   = s.data.Amount;
+    document.getElementById("ui_merchant").value = s.merchant;
+    document.getElementById("ui_category").value = s.category;
+    document.getElementById("ui_location").value = s.location;
+    document.getElementById("ui_time").value     = s.time;
+
+    document.querySelectorAll(".scenario-btn").forEach(b => b.classList.remove("active"));
+    const btns = document.querySelectorAll(".scenario-btn");
+    btns[i].classList.add("active");
+
+    hideResult();
+  }
+
+  function syncAmount() {
+    if (currentPayload) {
+      currentPayload.Amount = parseFloat(document.getElementById("ui_amount").value) || 0;
+    }
+  }
+
+  function hideResult() {
+    document.getElementById("result").style.display = "none";
+    document.getElementById("error-msg").style.display = "none";
+  }
+
+  async function analyse() {
+    if (!currentPayload) { showError("Please select a risk pattern (Legitimate or Suspicious) above first."); return; }
+    const amt = parseFloat(document.getElementById("ui_amount").value);
+    if (isNaN(amt)) { showError("Please enter a valid transaction amount."); return; }
+    currentPayload.Amount = amt;
+
+    const btn = document.getElementById("analyseBtn");
+    btn.disabled = true;
+    btn.textContent = "Analysing…";
+    hideResult();
+
+    try {
+      const res = await fetch(API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(currentPayload)
+      });
+      if (!res.ok) throw new Error(`API error ${res.status}`);
+      showResult(await res.json());
+    } catch(e) {
+      showError("Request failed: " + e.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Analyse Transaction";
+    }
+  }
+
+  function showResult(data) {
+    const el  = document.getElementById("result");
+    const pct = Math.round(data.fraud_probability * 100);
+    el.className = "result " + (data.is_fraud ? "fraud" : "legit");
+    document.getElementById("result-label").textContent =
+      data.is_fraud ? "⚠️  Fraud Detected" : "✅  Legitimate Transaction";
+    document.getElementById("prob-bar").style.width = pct + "%";
+    document.getElementById("prob-text").textContent = `Fraud probability: ${pct}%`;
+    el.style.display = "block";
+  }
+
+  function showError(msg) {
+    const el = document.getElementById("error-msg");
+    el.textContent = msg;
+    el.style.display = "block";
+  }
+</script>
+</body>
+</html>

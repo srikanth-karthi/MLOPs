@@ -1,0 +1,8 @@
+boto3==1.38.0
+fastapi==0.115.12
+imbalanced-learn==0.14.1
+joblib==1.5.3
+mlflow==3.11.1
+numpy==2.4.4
+scikit-learn==1.8.0
+uvicorn==0.34.2

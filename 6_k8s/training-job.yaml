@@ -1,0 +1,54 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: fraud-detection-training
+  namespace: default
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      restartPolicy: Never
+      serviceAccountName: mlflow
+      initContainers:
+        - name: download-data
+          image: amazon/aws-cli:latest
+          command:
+            - aws
+            - s3
+            - cp
+            - s3://mlops-cluster-mlflow-853973692277/data/creditcard.csv
+            - /data/creditcard.csv
+          env:
+            - name: AWS_DEFAULT_REGION
+              value: "us-east-1"
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      containers:
+        - name: training
+          image: srikanthkarthi/mlops-training:latest
+          args:
+            - "--model"
+            - "rf"
+            - "--n_estimators"
+            - "100"
+            - "--data_path"
+            - "/data/creditcard.csv"
+          env:
+            - name: MLFLOW_TRACKING_URI
+              value: "http://mlflow.mlflow.svc.cluster.local:5000"
+            - name: AWS_DEFAULT_REGION
+              value: "us-east-1"
+          resources:
+            requests:
+              cpu: "1"
+              memory: "2Gi"
+            limits:
+              cpu: "2"
+              memory: "4Gi"
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          emptyDir: {}

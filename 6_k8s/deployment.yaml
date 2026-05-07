@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fraud-detector
+  namespace: mlflow
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: fraud-detector
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: fraud-detector
+    spec:
+      serviceAccountName: mlflow
+      containers:
+        - name: serving
+          image: srikanthkarthi/mlops-serving:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: MLFLOW_TRACKING_URI
+              value: "http://mlflow.mlflow.svc.cluster.local:5000"
+            - name: AWS_DEFAULT_REGION
+              value: "us-east-1"
+            - name: MODEL_NAME
+              value: "fraud-detector"
+            - name: MODEL_ALIAS
+              value: "production"
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 15

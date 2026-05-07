@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# MLflow local artifacts (use remote tracking server)
+mlruns/
+mlflow.db
+2_training/models/
+
+# Terraform
+terraform/eks/.terraform/
+terraform/eks/*.tfstate
+terraform/eks/*.tfstate.backup
+terraform/eks/.terraform.lock.hcl
+terraform/eks/terraform.tfvars
+2_training/terraform.tfstate
+2_training/terraform.tfstate.backup
+2_training/.terraform/
+2_training/.terraform.lock.hcl
+
+# Data
+data/
+*.csv
+
+# Compiled pipeline artifacts
+5_pipeline/compiled/
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+*.ipynb
+
+# Env / secrets
+.env
+*.env
+*.pem
+*.key
+
+# OS
+.DS_Store
+
+# Claude project memory
+.claude/
