@@ -27,6 +27,7 @@ for p in (pipelines.pipelines or []):
         pipeline_id = p.pipeline_id
         break
 
+version_id = None
 if pipeline_id is None:
     pipeline = client.upload_pipeline(
         pipeline_package_path="compiled/pipeline.yaml",
@@ -40,12 +41,15 @@ else:
         pipeline_version_name=f"v-{datetime.now().strftime('%Y%m%d-%H%M%S')}",
         pipeline_id=pipeline_id,
     )
-    print(f"Pipeline version uploaded: {version.pipeline_version_id}")
+    version_id = version.pipeline_version_id
+    print(f"Pipeline version uploaded: {version_id}")
 
 experiment = client.create_experiment(name="fraud-detection")
 
-run = client.create_run_from_pipeline_package(
-    pipeline_file="compiled/pipeline.yaml",
+# Run from registered pipeline ID so artifacts are linked in MLMD
+run = client.create_run_from_pipeline_id(
+    pipeline_id=pipeline_id,
+    version_id=version_id,
     arguments={"n_estimators": 100, "min_auprc": 0.75},
     run_name=f"fraud-detection-run-{datetime.now().strftime('%Y%m%d-%H%M%S')}",
     experiment_id=experiment.experiment_id,
