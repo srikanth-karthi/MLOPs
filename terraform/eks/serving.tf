@@ -9,7 +9,12 @@ resource "kubernetes_cluster_role" "kfp_deploy" {
   rule {
     api_groups = ["apps"]
     resources  = ["deployments"]
-    verbs      = ["get", "patch"]
+    verbs      = ["get", "list", "create", "patch", "delete"]
+  }
+  rule {
+    api_groups = [""]
+    resources  = ["pods"]
+    verbs      = ["get", "list", "watch"]
   }
 }
 
@@ -121,6 +126,7 @@ resource "kubernetes_service" "fraud_detector" {
   metadata {
     name      = "fraud-detector"
     namespace = kubernetes_namespace.mlflow.metadata[0].name
+    labels    = { app = "fraud-detector" }
   }
 
   spec {
@@ -128,6 +134,7 @@ resource "kubernetes_service" "fraud_detector" {
     selector = { app = "fraud-detector" }
 
     port {
+      name        = "http"
       port        = 80
       target_port = 8080
     }

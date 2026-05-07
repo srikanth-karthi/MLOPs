@@ -32,20 +32,18 @@ experiment = client.create_experiment(name="fraud-detection")
 
 arguments = {
     # ── Model ──────────────────────────────────────────────────────────────
-    "n_estimators":        100,
-    "model_type":          "rf",        # rf | xgb | lgbm
-    "min_auprc":           0.75,
-    "threshold":           0.5,
+    "n_estimators":         100,
+    "model_type":           "rf",       # rf | xgb | lgbm
+    "min_auprc":            0.75,
+    "threshold":            0.5,
     # ── Data ───────────────────────────────────────────────────────────────
-    "s3_data_key":         "data/creditcard.csv",
-    "test_split_ratio":    0.2,
-    "smote_random_state":  42,
-    # ── Drift ──────────────────────────────────────────────────────────────
-    "drift_threshold":     0.05,        # lower = more sensitive
+    "s3_data_key":          "data/creditcard.csv",
+    "test_split_ratio":     0.2,
+    "smote_random_state":   42,
     # ── Tuning ─────────────────────────────────────────────────────────────
-    "tune_n_iter":         5,
+    "tune_n_iter":          5,
     "n_estimators_options": "50,100,150,200",
-    "max_depth_options":   "10,20,30",
+    "max_depth_options":    "10,20,30",
 }
 
 run = client.create_run_from_pipeline_package(

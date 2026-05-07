@@ -10,8 +10,7 @@ mlflow.db
 
 # Terraform
 terraform/eks/.terraform/
-terraform/eks/*.tfstate
-terraform/eks/*.tfstate.backup
+terraform/eks/*.tfstate*
 terraform/eks/.terraform.lock.hcl
 terraform/eks/terraform.tfvars
 2_training/terraform.tfstate

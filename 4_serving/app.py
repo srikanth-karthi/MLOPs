@@ -20,6 +20,8 @@ import numpy as np
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from mlflow import MlflowClient
+from prometheus_client import Counter, Histogram
+from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import BaseModel
 
 logging.basicConfig(level=logging.INFO)
@@ -36,6 +38,27 @@ app.add_middleware(
     allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+Instrumentator().instrument(app).expose(app)
+
+PREDICTIONS_TOTAL = Counter(
+    "fraud_predictions_total",
+    "Total number of prediction requests",
+)
+FRAUD_DETECTED_TOTAL = Counter(
+    "fraud_detected_total",
+    "Total number of transactions flagged as fraud",
+)
+PREDICTION_AMOUNT = Histogram(
+    "prediction_amount_dollars",
+    "Transaction amount distribution",
+    buckets=[10, 50, 100, 500, 1000, 5000, 10000],
+)
+PREDICTION_PROBABILITY = Histogram(
+    "fraud_probability",
+    "Distribution of fraud probability scores",
+    buckets=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
 )
 
 _model    = None
@@ -133,11 +156,18 @@ def predict(req: PredictRequest):
     row  = preprocess(data)
     prob = inference(row)
 
+    is_fraud = prob >= 0.5
+    PREDICTIONS_TOTAL.inc()
+    PREDICTION_PROBABILITY.observe(prob)
+    PREDICTION_AMOUNT.observe(data["Amount"])
+    if is_fraud:
+        FRAUD_DETECTED_TOTAL.inc()
+
     mlflow.get_current_active_span().set_attributes({
-        "model_version":    str(_version),
+        "model_version":     str(_version),
         "fraud_probability": prob,
-        "is_fraud":         prob >= 0.5,
-        "amount":           data["Amount"],
+        "is_fraud":          is_fraud,
+        "amount":            data["Amount"],
     })
 
-    return PredictResponse(fraud_probability=prob, is_fraud=prob >= 0.5)
+    return PredictResponse(fraud_probability=prob, is_fraud=is_fraud)
