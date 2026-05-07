@@ -20,7 +20,6 @@ PIPELINE_NAME = "fraud-detection-pipeline"
 
 client = kfp.Client(host=KFP_ENDPOINT)
 
-# Find existing pipeline by name
 pipelines = client.list_pipelines(page_size=100)
 pipeline_id = None
 for p in (pipelines.pipelines or []):
@@ -43,7 +42,6 @@ else:
     )
     print(f"Pipeline version uploaded: {version.pipeline_version_id}")
 
-# Trigger a run under the fraud-detection experiment
 experiment = client.create_experiment(name="fraud-detection")
 
 run = client.create_run_from_pipeline_package(

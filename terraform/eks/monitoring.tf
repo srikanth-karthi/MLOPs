@@ -1,5 +1,3 @@
-# ── Prometheus + Grafana (kube-prometheus-stack) ──────────────────────────────
-
 resource "helm_release" "kube_prometheus_stack" {
   name             = "kube-prometheus-stack"
   repository       = "https://prometheus-community.github.io/helm-charts"
@@ -41,8 +39,6 @@ resource "helm_release" "kube_prometheus_stack" {
   ]
 }
 
-# ── Grafana dashboard ConfigMap ───────────────────────────────────────────────
-
 resource "kubernetes_config_map" "fraud_detector_dashboard" {
   metadata {
     name      = "fraud-detector-dashboard"
@@ -57,10 +53,7 @@ resource "kubernetes_config_map" "fraud_detector_dashboard" {
   }
 }
 
-# ── ServiceMonitor — scrape /metrics from fraud-detector ─────────────────────
-# kubernetes_manifest validates CRDs at plan time (before Helm installs them),
-# so we apply the ServiceMonitor via kubectl after the Helm release is ready.
-
+# kubectl apply instead of kubernetes_manifest: avoids CRD validation at plan time
 resource "null_resource" "fraud_detector_service_monitor" {
   triggers = {
     helm_release = helm_release.kube_prometheus_stack.metadata[0].revision
@@ -94,8 +87,6 @@ resource "null_resource" "fraud_detector_service_monitor" {
 
   depends_on = [helm_release.kube_prometheus_stack]
 }
-
-# ── Outputs ───────────────────────────────────────────────────────────────────
 
 output "grafana_url" {
   description = "Grafana LoadBalancer URL (may take ~2 min to provision)"

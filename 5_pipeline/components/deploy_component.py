@@ -12,13 +12,6 @@ def deploy(
     namespace: str = "mlflow",
     canary_wait_seconds: int = 120,
 ) -> str:
-    """
-    Canary deployment:
-      1. Create fraud-detector-canary (1 replica, loads new @production model).
-      2. Wait up to canary_wait_seconds for it to become Ready.
-      3. If healthy → rolling restart stable deployment + delete canary.
-      4. If timeout → delete canary and raise (stable keeps serving old model).
-    """
     import time
     from datetime import datetime, timezone
 
@@ -31,11 +24,9 @@ def deploy(
 
     canary_name = f"{deployment_name}-canary"
 
-    # ── Read stable deployment to clone its pod spec ──────────────────────────
     stable = apps_v1.read_namespaced_deployment(deployment_name, namespace)
     pod_spec = stable.spec.template.spec
 
-    # ── Delete any leftover canary from a previous failed run ────────────────
     try:
         apps_v1.delete_namespaced_deployment(
             canary_name, namespace,
@@ -47,13 +38,12 @@ def deploy(
         if e.status != 404:
             raise
 
-    # ── Create canary deployment ─────────────────────────────────────────────
     canary = client.V1Deployment(
         metadata=client.V1ObjectMeta(
             name=canary_name,
             namespace=namespace,
             labels={
-                "app":           deployment_name,   # joins the Service
+                "app":           deployment_name,
                 "version":       "canary",
                 "model-version": model_version,
             },
@@ -75,7 +65,6 @@ def deploy(
     apps_v1.create_namespaced_deployment(namespace, canary)
     print(f"Canary deployment '{canary_name}' created — waiting for readiness ...")
 
-    # ── Wait for canary pod to become Ready ───────────────────────────────────
     deadline = time.time() + canary_wait_seconds
     ready = False
     while time.time() < deadline:
@@ -97,7 +86,6 @@ def deploy(
 
     print(f"Canary is healthy. Promoting {model_name} v{model_version} to stable ...")
 
-    # ── Promote: rolling restart stable deployment ────────────────────────────
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     apps_v1.patch_namespaced_deployment(
         deployment_name,
@@ -116,7 +104,6 @@ def deploy(
         },
     )
 
-    # ── Clean up canary ───────────────────────────────────────────────────────
     apps_v1.delete_namespaced_deployment(
         canary_name, namespace,
         body=client.V1DeleteOptions(propagation_policy="Foreground"),

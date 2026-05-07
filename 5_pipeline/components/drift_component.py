@@ -10,11 +10,6 @@ def check_drift(
     model_name: str = "fraud-detector",
     drift_threshold: float = 0.05,
 ) -> bool:
-    """
-    KS-test each feature in new data against the training distribution saved
-    in the production model's MLflow run. Returns True if drift is detected
-    (or if no production model exists yet — triggers initial training).
-    """
     import json
     import os
 
@@ -30,7 +25,6 @@ def check_drift(
     mlflow.set_tracking_uri(mlflow_tracking_uri)
     client = MlflowClient()
 
-    # ── Load reference statistics from last production run ────────────────────
     try:
         mv = client.get_model_version_by_alias(model_name, "production")
         run_id = mv.run_id
@@ -44,14 +38,12 @@ def check_drift(
         print("No production model found — triggering initial training.")
         return True
 
-    # ── Load new data from S3 (last 20% of CSV = held-out window) ────────────
     s3 = boto3.client("s3", region_name=aws_region)
     print(f"Downloading s3://{s3_bucket}/{s3_data_key}")
     s3.download_file(s3_bucket, s3_data_key, "/tmp/data.csv")
     df = pd.read_csv("/tmp/data.csv")
     new_data = df.iloc[int(len(df) * 0.8):]
 
-    # ── KS-test each feature ──────────────────────────────────────────────────
     feature_cols = ["Time"] + [f"V{i}" for i in range(1, 29)] + ["Amount"]
     drifted = []
 

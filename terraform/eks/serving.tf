@@ -1,7 +1,3 @@
-# ── Fraud Detector Serving Fleet ──────────────────────────────────────────────
-
-# Allow KFP pipeline pods (default service account in kubeflow namespace)
-# to patch the fraud-detector deployment for rolling restarts.
 resource "kubernetes_cluster_role" "kfp_deploy" {
   metadata {
     name = "kfp-deployment-patcher"

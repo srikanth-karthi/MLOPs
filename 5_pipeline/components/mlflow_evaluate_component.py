@@ -11,11 +11,6 @@ def mlflow_evaluate(
     test_split_ratio: float = 0.2,
     model_name: str = "fraud-detector",
 ) -> str:
-    """
-    Run mlflow.evaluate() on the held-out test set against the just-trained model.
-    Logs accuracy, f1, precision, recall, ROC-AUC, and confusion matrix to MLflow.
-    Returns the evaluation run_id.
-    """
     import os
     import boto3
     import mlflow
@@ -29,7 +24,6 @@ def mlflow_evaluate(
 
     mlflow.set_tracking_uri(mlflow_tracking_uri)
 
-    # ── Download test data ────────────────────────────────────────────────────
     s3 = boto3.client("s3", region_name=aws_region)
     print(f"Downloading s3://{s3_bucket}/{s3_data_key}")
     s3.download_file(s3_bucket, s3_data_key, "/tmp/data.csv")
@@ -38,7 +32,6 @@ def mlflow_evaluate(
     split = int(len(df) * (1 - test_split_ratio))
     test  = df.iloc[split:].copy()
 
-    # ── Load scaler from training run and scale Amount + Time ─────────────────
     import joblib
     scaler_path = mlflow.artifacts.download_artifacts(
         run_id=run_id, artifact_path="scaler.pkl"
@@ -49,7 +42,6 @@ def mlflow_evaluate(
     X_test = test.drop("Class", axis=1)
     y_test = test["Class"].astype(int)
 
-    # ── mlflow.evaluate() ─────────────────────────────────────────────────────
     model_uri = f"runs:/{run_id}/model"
 
     eval_data = X_test.copy()

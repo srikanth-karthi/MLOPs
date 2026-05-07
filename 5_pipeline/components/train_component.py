@@ -15,7 +15,6 @@ def train(
     model_type: str = "rf",
     best_params: str = "{}",
 ) -> str:
-    """Train RandomForest on creditcard.csv, log to MLflow, return run_id."""
     import json
     import os
     import joblib
@@ -37,12 +36,10 @@ def train(
     os.environ["GIT_PYTHON_REFRESH"]   = "quiet"
     os.environ["MLFLOW_LOGGING_LEVEL"] = "WARNING"
 
-    # Override defaults with tuned params if provided
     params = json.loads(best_params) if best_params and best_params != "{}" else {}
     n_estimators = params.get("n_estimators", n_estimators)
     print(f"Training with params: {params if params else 'defaults'}")
 
-    # Download data from S3
     s3 = boto3.client("s3", region_name=aws_region)
     print(f"Downloading s3://{s3_bucket}/{s3_data_key}")
     s3.download_file(s3_bucket, s3_data_key, "/tmp/data.csv")
@@ -51,7 +48,7 @@ def train(
     mlflow.set_tracking_uri(mlflow_tracking_uri)
     mlflow.set_experiment(experiment_name)
 
-    # Load and split (time-based)
+    # time-based split to prevent leakage
     df = pd.read_csv("/tmp/data.csv").sort_values("Time")
     X = df.drop("Class", axis=1)
     y = df["Class"]
@@ -59,15 +56,12 @@ def train(
     X_train, X_test = X.iloc[:split].copy(), X.iloc[split:].copy()
     y_train, y_test = y.iloc[:split], y.iloc[split:]
 
-    # Scale Amount + Time
     scaler = StandardScaler()
     X_train[["Amount", "Time"]] = scaler.fit_transform(X_train[["Amount", "Time"]])
     X_test[["Amount", "Time"]] = scaler.transform(X_test[["Amount", "Time"]])
 
-    # SMOTE
     X_res, y_res = SMOTE(random_state=smote_random_state).fit_resample(X_train, y_train)
 
-    # Train — select model type and merge tuned params
     base_params = {"n_estimators": n_estimators, "class_weight": "balanced", "random_state": 5}
     base_params.update({k: v for k, v in params.items() if k != "n_estimators"})
 

@@ -1,15 +1,3 @@
-"""
-Fraud detection model serving API.
-
-Loads fraud-detector@production from MLflow Registry at startup.
-The scaler artifact is downloaded from the same run so Amount/Time
-are scaled consistently with training.
-
-Endpoints:
-    GET  /health   — liveness + readiness probe
-    POST /predict  — returns fraud probability and binary label
-"""
-
 import logging
 import os
 
@@ -97,11 +85,8 @@ def load_model():
     _scaler = joblib.load(scaler_path)
     log.info("Scaler loaded")
 
-    # Enable MLflow Tracing for this experiment
     mlflow.set_experiment(f"{MODEL_NAME}-serving")
 
-
-# ── Schemas ───────────────────────────────────────────────────────────────────
 
 class PredictRequest(BaseModel):
     Time: float
@@ -118,8 +103,6 @@ class PredictResponse(BaseModel):
     fraud_probability: float
     is_fraud: bool
 
-
-# ── Traced inference ──────────────────────────────────────────────────────────
 
 @mlflow.trace(
     name="preprocess",
@@ -139,8 +122,6 @@ def preprocess(data: dict) -> np.ndarray:
 def inference(row: np.ndarray) -> float:
     return float(_model.predict_proba(row)[0, 1])
 
-
-# ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @app.get("/health")
 def health():

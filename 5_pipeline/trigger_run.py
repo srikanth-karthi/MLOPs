@@ -15,7 +15,6 @@ KFP_ENDPOINT = os.environ.get(
 
 client = kfp.Client(host=KFP_ENDPOINT)
 
-# Find the existing uploaded pipeline by name
 pipelines = client.list_pipelines(page_size=10)
 pipeline_id = None
 for p in pipelines.pipelines or []:
@@ -31,16 +30,13 @@ print(f"Found pipeline: {pipeline_id}")
 experiment = client.create_experiment(name="fraud-detection")
 
 arguments = {
-    # ── Model ──────────────────────────────────────────────────────────────
     "n_estimators":         100,
-    "model_type":           "rf",       # rf | xgb | lgbm
+    "model_type":           "rf",   # rf | xgb | lgbm
     "min_auprc":            0.75,
     "threshold":            0.5,
-    # ── Data ───────────────────────────────────────────────────────────────
     "s3_data_key":          "data/creditcard.csv",
     "test_split_ratio":     0.2,
     "smote_random_state":   42,
-    # ── Tuning ─────────────────────────────────────────────────────────────
     "tune_n_iter":          5,
     "n_estimators_options": "50,100,150,200",
     "max_depth_options":    "10,20,30",
