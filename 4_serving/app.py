@@ -19,6 +19,8 @@ import mlflow.sklearn
 import numpy as np
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from mlflow import MlflowClient
 from prometheus_client import Counter, Histogram
 from prometheus_fastapi_instrumentator import Instrumentator
@@ -41,6 +43,13 @@ app.add_middleware(
 )
 
 Instrumentator().instrument(app).expose(app)
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+@app.get("/")
+def index():
+    return FileResponse("static/index.html")
 
 PREDICTIONS_TOTAL = Counter(
     "fraud_predictions_total",

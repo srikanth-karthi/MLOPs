@@ -1,3 +1,4 @@
+aiofiles==24.1.0
 boto3==1.38.0
 fastapi==0.115.12
 imbalanced-learn==0.14.1
