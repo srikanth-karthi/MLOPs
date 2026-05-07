@@ -96,7 +96,7 @@ def main():
         pipeline_id=pipeline.pipeline_id,
         version_id=version_id,
         cron_expression=CRON,
-        arguments=DEFAULT_ARGS,
+        params=DEFAULT_ARGS,
         enabled=True,
         no_catchup=True,
         max_concurrency=1,

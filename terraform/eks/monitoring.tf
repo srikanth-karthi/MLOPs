@@ -14,22 +14,13 @@ resource "helm_release" "kube_prometheus_stack" {
       service:
         type: LoadBalancer
       adminPassword: "mlops-admin"
-      dashboardProviders:
-        dashboardproviders.yaml:
-          apiVersion: 1
-          providers:
-            - name: fraud-detector
-              orgId: 1
-              folder: MLOps
-              type: file
-              disableDeletion: false
-              options:
-                path: /var/lib/grafana/dashboards/fraud-detector
-      dashboardsConfigMaps:
-        fraud-detector: "fraud-detector-dashboard"
-      grafana.ini:
+      sidecar:
         dashboards:
-          default_home_dashboard_path: /var/lib/grafana/dashboards/fraud-detector/fraud-detector.json
+          enabled: true
+          label: grafana_dashboard
+          labelValue: "1"
+          folder: /var/lib/grafana/dashboards/fraud-detector
+          searchNamespace: monitoring
 
     prometheus:
       prometheusSpec:
@@ -64,8 +55,6 @@ resource "kubernetes_config_map" "fraud_detector_dashboard" {
   data = {
     "fraud-detector.json" = file("${path.module}/grafana-dashboard.json")
   }
-
-  depends_on = [helm_release.kube_prometheus_stack]
 }
 
 # ── ServiceMonitor — scrape /metrics from fraud-detector ─────────────────────
