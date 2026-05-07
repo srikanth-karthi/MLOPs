@@ -1,8 +1,3 @@
-# ── Kubeflow Pipelines (standalone) ──────────────────────────────────────────
-# KFP has no official Helm chart, so we apply the upstream kustomize manifests
-# via a local-exec provisioner. The null_resource re-runs only when kfp_version
-# changes.
-
 resource "null_resource" "kubeflow_pipelines" {
   triggers = {
     kfp_version = var.kfp_version

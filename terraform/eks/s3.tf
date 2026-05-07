@@ -1,6 +1,3 @@
-# ── MLflow Artifact Store ─────────────────────────────────────────────────────
-# Bucket name includes the account ID to guarantee global uniqueness.
-
 data "aws_caller_identity" "current" {}
 
 resource "aws_s3_bucket" "mlflow" {
@@ -32,8 +29,6 @@ resource "aws_s3_bucket_public_access_block" "mlflow" {
   restrict_public_buckets = true
 }
 
-# ── IAM: allow MLflow pods to read/write the bucket (IRSA) ───────────────────
-
 resource "aws_iam_policy" "mlflow_s3" {
   name = "${var.cluster_name}-mlflow-s3"
 
@@ -57,7 +52,6 @@ resource "aws_iam_policy" "mlflow_s3" {
   })
 }
 
-# IAM role that the mlflow Kubernetes service account will assume via IRSA.
 resource "aws_iam_role" "mlflow" {
   name = "${var.cluster_name}-mlflow"
 

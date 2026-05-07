@@ -1,9 +1,3 @@
-# ── EKS Cluster ──────────────────────────────────────────────────────────────
-# Uses the official terraform-aws-modules/eks/aws module (v21).
-# Two managed node groups:
-#   - general   : system workloads, serving pods, Kubeflow infrastructure
-#   - ml-training : batch training Jobs (scales to 0 when idle)
-
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
   version = "~> 21.0"
@@ -11,20 +5,13 @@ module "eks" {
   name               = var.cluster_name
   kubernetes_version = var.kubernetes_version
 
-  # API server reachable from the public internet.
-  # Set to false and use a VPN/bastion in production.
   endpoint_public_access = true
 
-  # Grants the IAM identity running Terraform admin access to the cluster
-  # so kubectl works immediately after apply without extra aws-auth config.
   enable_cluster_creator_admin_permissions = true
 
   vpc_id     = module.vpc.vpc_id
   subnet_ids = module.vpc.private_subnets
 
-  # ── EKS Managed Add-ons ──────────────────────────────────────────────────
-  # before_compute = true means the add-on is installed before node groups,
-  # which is required for vpc-cni so nodes get IP addresses on first boot.
   addons = {
     coredns = {
       most_recent = true
@@ -42,11 +29,8 @@ module "eks" {
     }
   }
 
-  # ── Managed Node Groups ───────────────────────────────────────────────────
   eks_managed_node_groups = {
 
-    # General-purpose nodes: runs system pods, MLflow, MinIO, Kubeflow UI,
-    # and model serving Deployments.
     general = {
       ami_type       = "AL2023_x86_64_STANDARD"
       instance_types = var.general_instance_types
@@ -62,7 +46,6 @@ module "eks" {
         http_put_response_hop_limit = 2
       }
 
-      # Attach policies needed to pull images from ECR and write logs
       iam_role_additional_policies = {
         AmazonEC2ContainerRegistryReadOnly = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
         CloudWatchAgentServerPolicy        = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
@@ -78,8 +61,6 @@ module "eks" {
       }
     }
 
-    # ML training nodes: runs Kubernetes Jobs triggered by Kubeflow pipelines.
-    # Scales down to 0 when no training is running (controlled by Cluster Autoscaler).
     ml-training = {
       ami_type       = "AL2023_x86_64_STANDARD"
       instance_types = var.ml_instance_types
@@ -99,9 +80,6 @@ module "eks" {
         AmazonS3FullAccess                 = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
       }
 
-      # Taint so only training Jobs are scheduled here.
-      # Add toleration { key = "workload", value = "ml-training", effect = "NoSchedule" }
-      # to training Job pod specs.
       taints = {
         ml-training = {
           key    = "workload"

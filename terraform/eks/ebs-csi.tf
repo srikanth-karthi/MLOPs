@@ -1,8 +1,3 @@
-# ── EBS CSI Driver ────────────────────────────────────────────────────────────
-# Required for EKS to provision EBS volumes for PersistentVolumeClaims.
-# KFP's mysql and minio both need PVCs, so this must exist before KFP is
-# installed.
-
 resource "aws_iam_role" "ebs_csi" {
   name = "${var.cluster_name}-ebs-csi"
 

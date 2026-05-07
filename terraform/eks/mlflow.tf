@@ -1,8 +1,3 @@
-# ── MLflow on EKS ─────────────────────────────────────────────────────────────
-# Uses the community Helm chart.
-# Artifact store  → S3 bucket (via IRSA — no static credentials needed)
-# Backend store   → SQLite on a PersistentVolume (simple, good enough for dev)
-
 resource "kubernetes_namespace" "mlflow" {
   metadata {
     name = "mlflow"
@@ -18,13 +13,11 @@ resource "helm_release" "mlflow" {
   version    = var.mlflow_chart_version
   namespace  = kubernetes_namespace.mlflow.metadata[0].name
 
-  # ── Backend store (SQLite on a PVC) ────────────────────────────────────────
   set {
     name  = "backendStore.defaultSqlitePath"
     value = "/mlflow/mlruns/mlflow.db"
   }
 
-  # ── Artifact store (S3) ────────────────────────────────────────────────────
   set {
     name  = "artifactRoot.s3.enabled"
     value = "true"
@@ -37,7 +30,6 @@ resource "helm_release" "mlflow" {
     name  = "artifactRoot.s3.path"
     value = "artifacts"
   }
-  # ── Service account with IRSA annotation (no static AWS keys needed) ───────
   set {
     name  = "serviceAccount.create"
     value = "true"
@@ -64,7 +56,6 @@ resource "helm_release" "mlflow" {
     })
   ]
 
-  # ── Expose via LoadBalancer so you can reach the UI from your laptop ────────
   set {
     name  = "service.type"
     value = "LoadBalancer"

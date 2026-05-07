@@ -24,14 +24,6 @@ terraform {
     }
   }
 
-  # Uncomment and configure after creating an S3 bucket + DynamoDB table for state
-  # backend "s3" {
-  #   bucket         = "<your-terraform-state-bucket>"
-  #   key            = "mlops/eks/terraform.tfstate"
-  #   region         = "us-east-1"
-  #   dynamodb_table = "<your-lock-table>"
-  #   encrypt        = true
-  # }
 }
 
 provider "aws" {
