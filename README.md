@@ -13,49 +13,49 @@ A production-grade MLOps platform for real-time credit card fraud detection. Cov
 │  ┌──────────────────────────────────────────────────────────────────────┐   │
 │  │                     Kubeflow Pipelines                               │   │
 │  │                                                                      │   │
-│  │   ┌────────┐   ┌────────┐   ┌──────────┐   ┌─────────────────────┐  │   │
-│  │   │  Tune  │──▶│ Train  │──▶│ Evaluate │──▶│  MLflow Evaluate    │  │   │
-│  │   │  (CV)  │   │RF/XGB/ │   │AUPRC gate│   │ (batch metrics log) │  │   │
-│  │   └────────┘   │  LGBM  │   └──────────┘   └──────────┬──────────┘  │   │
-│  │                └────────┘        │ fail            pass │             │   │
-│  │                                  ▼                      ▼             │   │
-│  │                             [pipeline           ┌──────────────┐      │   │
-│  │                              stops]             │   Register   │      │   │
-│  │                                                 │ @production  │      │   │
-│  │                                                 └──────┬───────┘      │   │
-│  │                                                        │              │   │
-│  │                                              ┌─────────▼────────┐     │   │
-│  │                                              │  Canary Deploy   │     │   │
-│  │                                              │ 1 replica health │     │   │
-│  │                                              │ check → promote  │     │   │
-│  │                                              └─────────┬────────┘     │   │
+│  │   ┌────────┐   ┌────────┐   ┌──────────┐   ┌─────────────────────┐   │   │
+│  │   │  Tune  │──▶│ Train  │──▶│ Evaluate │──▶│  MLflow Evaluate    │   │   │
+│  │   │  (CV)  │   │RF/XGB/ │   │AUPRC gate│   │ (batch metrics log) │   │   │
+│  │   └────────┘   │  LGBM  │   └──────────┘   └──────────┬──────────┘   │   │
+│  │                └────────┘        │ fail            pass │            │   │
+│  │                                  ▼                      ▼            │   │
+│  │                             [pipeline           ┌──────────────┐     │   │
+│  │                              stops]             │   Register   │     │   │
+│  │                                                 │ @production  │     │   │
+│  │                                                 └──────┬───────┘     │   │
+│  │                                                        │             │   │
+│  │                                              ┌─────────▼────────     │   │
+│  │                                              │  Canary Deploy   │    │   │
+│  │                                              │ 1 replica health │    │   │
+│  │                                              │ check → promote  │    │   │
+│  │                                              └─────────┬────────┘    │   │
 │  └────────────────────────────────────────────────────────│─────────────┘   │
 │                                                           │                 │
 │  ┌────────────────────────────────────────────────────────▼─────────────┐   │
 │  │                    Serving  (namespace: mlflow)                      │   │
 │  │                                                                      │   │
 │  │   Internet ──▶ LoadBalancer ──▶ fraud-detector pods (FastAPI)        │   │
-│  │                                        │                            │   │
-│  │                              ┌─────────┴──────────┐                 │   │
-│  │                              │   MLflow Tracing   │                 │   │
-│  │                              │  /predict traced   │                 │   │
-│  │                              │  per-span metrics  │                 │   │
-│  │                              └─────────┬──────────┘                 │   │
-│  │                                        │ /metrics                   │   │
-│  │                                        ▼                            │   │
-│  │                              Prometheus scrape (15s)                │   │
+│  │                                        │                             │   │
+│  │                              ┌─────────┴──────────┐                  │   │
+│  │                              │   MLflow Tracing   │                  │   │
+│  │                              │  /predict traced   │                  │   │
+│  │                              │  per-span metrics  │                  │   │
+│  │                              └─────────┬──────────┘                  │   │
+│  │                                        │ /metrics                    │   │
+│  │                                        ▼                             │   │
+│  │                              Prometheus scrape (15s)                 │   │
 │  └──────────────────────────────────────────────────────────────────────┘   │
 │                                                                             │
-│  ┌───────────────────┐   ┌──────────────────┐   ┌────────────────────────┐ │
-│  │      MLflow       │   │      MinIO       │   │  Prometheus + Grafana  │ │
-│  │  Tracking Server  │   │  Artifact Store  │   │   (kube-prometheus-    │ │
-│  │  Model Registry   │   │  Pipeline Logs   │   │        stack)          │ │
-│  └───────────────────┘   └──────────────────┘   └────────────────────────┘ │
+│  ┌───────────────────┐   ┌──────────────────┐   ┌────────────────────────┐  │
+│  │      MLflow       │   │      MinIO       │   │  Prometheus + Grafana  │  │
+│  │  Tracking Server  │   │  Artifact Store  │   │   (kube-prometheus-    │  │
+│  │  Model Registry   │   │  Pipeline Logs   │   │        stack)          │  │
+│  └───────────────────┘   └──────────────────┘   └────────────────────────┘  │
 │                                                                             │
 │  ┌────────────────────────────────────────────────────────────────────────┐ │
 │  │                    AWS Services                                        │ │
-│  │   S3 (training data + MLflow artifacts)   EBS CSI (persistent volumes)│ │
-│  │   IAM (IRSA — pod-level S3 access)        EKS Managed Node Groups     │ │
+│  │   S3 (training data + MLflow artifacts)   EBS CSI (persistent volumes) │ │
+│  │   IAM (IRSA — pod-level S3 access)        EKS Managed Node Groups      │ │
 │  └────────────────────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
