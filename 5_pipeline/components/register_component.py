@@ -30,10 +30,6 @@ def register(
     version = mv.version
 
     client.set_registered_model_alias(model_name, "staging", version)
-    client.set_registered_model_alias(model_name, "production", version)
 
-    if prev_version and prev_version != version:
-        client.set_model_version_tag(model_name, prev_version, "archived", "true")
-
-    print(f"Registered '{model_name}' v{version} @production")
+    print(f"Registered '{model_name}' v{version} @staging (deploy step will promote to @production)")
     return version

@@ -8,15 +8,33 @@ from kfp import dsl
 def deploy(
     model_name: str,
     model_version: str,
+    mlflow_tracking_uri: str,
     deployment_name: str = "fraud-detector",
     namespace: str = "mlflow",
     canary_wait_seconds: int = 120,
 ) -> str:
+    import os
     import time
     from datetime import datetime, timezone
 
+    import mlflow
+    from mlflow import MlflowClient
+    from mlflow.exceptions import MlflowException
     from kubernetes import client, config
     from kubernetes.client.rest import ApiException
+
+    os.environ["GIT_PYTHON_REFRESH"]   = "quiet"
+    os.environ["MLFLOW_LOGGING_LEVEL"] = "WARNING"
+    mlflow.set_tracking_uri(mlflow_tracking_uri)
+    mlflow_client = MlflowClient()
+
+    prev_production_version = None
+    try:
+        prev = mlflow_client.get_model_version_by_alias(model_name, "production")
+        prev_production_version = prev.version
+        print(f"Current @production: v{prev_production_version}")
+    except MlflowException:
+        print("No existing @production version found")
 
     config.load_incluster_config()
     apps_v1 = client.AppsV1Api()
@@ -79,12 +97,20 @@ def deploy(
             canary_name, namespace,
             body=client.V1DeleteOptions(propagation_policy="Foreground"),
         )
+        if prev_production_version:
+            mlflow_client.set_registered_model_alias(model_name, "production", prev_production_version)
+            print(f"Canary failed — reverted @production to v{prev_production_version}")
+        else:
+            print("Canary failed — no previous @production to revert to")
         raise RuntimeError(
             f"Canary did not become ready within {canary_wait_seconds}s — "
-            "stable deployment unchanged, new model NOT promoted."
+            f"@production reverted to v{prev_production_version}, stable deployment unchanged."
         )
 
-    print(f"Canary is healthy. Promoting {model_name} v{model_version} to stable ...")
+    mlflow_client.set_registered_model_alias(model_name, "production", model_version)
+    if prev_production_version and prev_production_version != model_version:
+        mlflow_client.set_model_version_tag(model_name, prev_production_version, "archived", "true")
+    print(f"Canary is healthy. Promoting {model_name} v{model_version} to @production ...")
 
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     apps_v1.patch_namespaced_deployment(

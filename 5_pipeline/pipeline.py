@@ -110,6 +110,7 @@ def fraud_detection_pipeline(
         deploy(
             model_name=model_name,
             model_version=register_task.output,
+            mlflow_tracking_uri=mlflow_tracking_uri,
         )
 
 
