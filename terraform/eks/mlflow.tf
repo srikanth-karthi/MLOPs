@@ -6,6 +6,21 @@ resource "kubernetes_namespace" "mlflow" {
   depends_on = [module.eks]
 }
 
+resource "kubernetes_persistent_volume_claim" "mlflow_sqlite" {
+  metadata {
+    name      = "mlflow-sqlite"
+    namespace = kubernetes_namespace.mlflow.metadata[0].name
+  }
+  spec {
+    access_modes       = ["ReadWriteOnce"]
+    storage_class_name = "gp3"
+    resources {
+      requests = { storage = "10Gi" }
+    }
+  }
+  depends_on = [kubernetes_namespace.mlflow]
+}
+
 resource "helm_release" "mlflow" {
   name       = "mlflow"
   repository = "https://community-charts.github.io/helm-charts"
@@ -53,6 +68,14 @@ resource "helm_release" "mlflow" {
       extraArgs = {
         "allowed-hosts" = "*"
       }
+      extraVolumes = [{
+        name = "mlflow-sqlite"
+        persistentVolumeClaim = { claimName = "mlflow-sqlite" }
+      }]
+      extraVolumeMounts = [{
+        name      = "mlflow-sqlite"
+        mountPath = "/mlflow/mlruns"
+      }]
     })
   ]
 
@@ -65,5 +88,5 @@ resource "helm_release" "mlflow" {
     value = "5000"
   }
 
-  depends_on = [kubernetes_namespace.mlflow, aws_iam_role_policy_attachment.mlflow_s3]
+  depends_on = [kubernetes_namespace.mlflow, aws_iam_role_policy_attachment.mlflow_s3, kubernetes_persistent_volume_claim.mlflow_sqlite]
 }

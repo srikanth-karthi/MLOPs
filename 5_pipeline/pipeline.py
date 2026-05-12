@@ -25,6 +25,7 @@ import sys
 sys.path.insert(0, os.path.dirname(__file__))
 
 from kfp import compiler, dsl
+from kfp import kubernetes
 
 from components.deploy_component import deploy
 from components.evaluate_component import evaluate
@@ -68,7 +69,8 @@ def fraud_detection_pipeline(
         n_estimators_options=n_estimators_options,
         max_depth_options=max_depth_options,
     )
-    tune_task.set_cpu_request("1500m").set_memory_request("5Gi")
+    tune_task.set_cpu_request("1500m").set_memory_request("5Gi").set_caching_options(False)
+    kubernetes.add_toleration(tune_task, key="workload", operator="Equal", value="ml-training", effect="NoSchedule")
 
     train_task = train(
         mlflow_tracking_uri=mlflow_tracking_uri,
@@ -83,16 +85,18 @@ def fraud_detection_pipeline(
         model_type=model_type,
         best_params=tune_task.output,
     )
-    train_task.set_cpu_request("1500m").set_memory_request("5Gi")
+    train_task.set_cpu_request("1500m").set_memory_request("5Gi").set_caching_options(False)
+    kubernetes.add_toleration(train_task, key="workload", operator="Equal", value="ml-training", effect="NoSchedule")
 
     evaluate_task = evaluate(
         mlflow_tracking_uri=mlflow_tracking_uri,
         run_id=train_task.output,
         min_auprc=min_auprc,
     )
+    evaluate_task.set_caching_options(False)
 
     with dsl.If(evaluate_task.output == True, name="quality-gate"):
-        mlflow_evaluate(
+        mlflow_eval_task = mlflow_evaluate(
             mlflow_tracking_uri=mlflow_tracking_uri,
             run_id=train_task.output,
             s3_bucket=s3_bucket,
@@ -101,17 +105,21 @@ def fraud_detection_pipeline(
             test_split_ratio=test_split_ratio,
             model_name=model_name,
         )
+        mlflow_eval_task.set_caching_options(False)
 
         register_task = register(
             mlflow_tracking_uri=mlflow_tracking_uri,
             run_id=train_task.output,
             model_name=model_name,
         )
-        deploy(
+        register_task.set_caching_options(False)
+
+        deploy_task = deploy(
             model_name=model_name,
             model_version=register_task.output,
             mlflow_tracking_uri=mlflow_tracking_uri,
         )
+        deploy_task.set_caching_options(False)
 
 
 if __name__ == "__main__":

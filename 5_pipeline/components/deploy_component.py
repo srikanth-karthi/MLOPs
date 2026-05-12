@@ -56,6 +56,13 @@ def deploy(
         if e.status != 404:
             raise
 
+    # Bootstrap: if no @production exists yet, set it now so the canary pod can load the model.
+    # On failure we'll delete the alias instead of reverting.
+    bootstrapping = prev_production_version is None
+    if bootstrapping:
+        mlflow_client.set_registered_model_alias(model_name, "production", model_version)
+        print(f"No existing @production — set to v{model_version} before canary start (bootstrap mode)")
+
     canary = client.V1Deployment(
         metadata=client.V1ObjectMeta(
             name=canary_name,
@@ -97,11 +104,12 @@ def deploy(
             canary_name, namespace,
             body=client.V1DeleteOptions(propagation_policy="Foreground"),
         )
-        if prev_production_version:
+        if bootstrapping:
+            mlflow_client.delete_registered_model_alias(model_name, "production")
+            print("Canary failed (bootstrap) — removed @production alias, no stable to revert to")
+        elif prev_production_version:
             mlflow_client.set_registered_model_alias(model_name, "production", prev_production_version)
             print(f"Canary failed — reverted @production to v{prev_production_version}")
-        else:
-            print("Canary failed — no previous @production to revert to")
         raise RuntimeError(
             f"Canary did not become ready within {canary_wait_seconds}s — "
             f"@production reverted to v{prev_production_version}, stable deployment unchanged."
