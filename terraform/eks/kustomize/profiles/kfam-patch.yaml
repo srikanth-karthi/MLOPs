@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deployment
+spec:
+  template:
+    spec:
+      serviceAccountName: profiles-controller-service-account
+      containers:
+      - name: kfam
+        command:
+        - /access-management
+        - "-cluster-admin"
+        - $(ADMIN)
+        - "-userid-header"
+        - $(USERID_HEADER)
+        - "-userid-prefix"
+        - $(USERID_PREFIX)
+        envFrom:
+        - configMapRef:
+            name: config
+        image: ghcr.io/kubeflow/kubeflow/kfam
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8081
+          name: kfam-http
+          protocol: TCP
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          capabilities:
+            drop:
+            - ALL

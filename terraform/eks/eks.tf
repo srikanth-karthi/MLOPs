@@ -39,6 +39,17 @@ module "eks" {
       max_size     = var.general_max_size
       desired_size = var.general_desired_size
 
+      block_device_mappings = {
+        xvda = {
+          device_name = "/dev/xvda"
+          ebs = {
+            volume_size           = 50
+            volume_type           = "gp3"
+            delete_on_termination = true
+          }
+        }
+      }
+
       # Hop limit 2 allows pods to reach IMDS for IAM credentials
       metadata_options = {
         http_endpoint               = "enabled"
@@ -68,6 +79,17 @@ module "eks" {
       min_size     = var.ml_min_size
       max_size     = var.ml_max_size
       desired_size = var.ml_desired_size
+
+      block_device_mappings = {
+        xvda = {
+          device_name = "/dev/xvda"
+          ebs = {
+            volume_size           = 80
+            volume_type           = "gp3"
+            delete_on_termination = true
+          }
+        }
+      }
 
       metadata_options = {
         http_endpoint               = "enabled"

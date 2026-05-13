@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config
+  namespace: kubeflow
+data:
+  USERID_HEADER: "kubeflow-userid"
+  USERID_PREFIX: ""
+  WORKLOAD_IDENTITY: ""
+  ADMIN: ""

@@ -1,3 +1,57 @@
+# Aggregated ClusterRoles for Kubeflow profile-based RBAC
+# Component ClusterRoles (notebooks, KServe, pipelines) carry aggregate-to-kubeflow-* labels;
+# these aggregation ClusterRoles collect them so the profile controller's RoleBindings resolve.
+
+resource "kubernetes_cluster_role" "kubeflow_admin" {
+  metadata {
+    name = "kubeflow-admin"
+    labels = {
+      "rbac.authorization.kubeflow.org/aggregate-to-kubeflow-admin" = "true"
+    }
+  }
+  aggregation_rule {
+    cluster_role_selectors {
+      match_labels = {
+        "rbac.authorization.kubeflow.org/aggregate-to-kubeflow-admin" = "true"
+      }
+    }
+  }
+}
+
+resource "kubernetes_cluster_role" "kubeflow_edit" {
+  metadata {
+    name = "kubeflow-edit"
+    labels = {
+      "rbac.authorization.kubeflow.org/aggregate-to-kubeflow-edit" = "true"
+    }
+  }
+  aggregation_rule {
+    cluster_role_selectors {
+      match_labels = {
+        "rbac.authorization.kubeflow.org/aggregate-to-kubeflow-edit" = "true"
+      }
+    }
+  }
+}
+
+resource "kubernetes_cluster_role" "kubeflow_view" {
+  metadata {
+    name = "kubeflow-view"
+    labels = {
+      "rbac.authorization.kubeflow.org/aggregate-to-kubeflow-view" = "true"
+    }
+  }
+  aggregation_rule {
+    cluster_role_selectors {
+      match_labels = {
+        "rbac.authorization.kubeflow.org/aggregate-to-kubeflow-view" = "true"
+      }
+    }
+  }
+}
+
+# RBAC allowing the KFP pipeline-runner to manage deployments (used by deploy_component.py)
+
 resource "kubernetes_cluster_role" "kfp_deploy" {
   metadata {
     name = "kfp-deployment-patcher"
@@ -30,142 +84,34 @@ resource "kubernetes_cluster_role_binding" "kfp_deploy" {
   }
 }
 
-resource "kubernetes_deployment" "fraud_detector" {
+# Allow pipeline-runner to manage KServe InferenceServices in the user namespace
+
+resource "kubernetes_cluster_role" "kfp_inferenceservice" {
   metadata {
-    name      = "fraud-detector"
-    namespace = kubernetes_namespace.mlflow.metadata[0].name
+    name = "kfp-inferenceservice-manager"
   }
-
-  spec {
-    replicas = 1
-
-    selector {
-      match_labels = { app = "fraud-detector" }
-    }
-
-    strategy {
-      type = "RollingUpdate"
-      rolling_update {
-        max_surge       = 1
-        max_unavailable = 0
-      }
-    }
-
-    template {
-      metadata {
-        labels = { app = "fraud-detector" }
-      }
-
-      spec {
-        service_account_name = "mlflow"
-
-        container {
-          name  = "serving"
-          image = "srikanthkarthi/mlops-serving:latest"
-
-          port { container_port = 8080 }
-
-          env {
-            name  = "MLFLOW_TRACKING_URI"
-            value = "http://mlflow.${kubernetes_namespace.mlflow.metadata[0].name}.svc.cluster.local:5000"
-          }
-          env {
-            name  = "AWS_DEFAULT_REGION"
-            value = var.aws_region
-          }
-          env {
-            name  = "MODEL_NAME"
-            value = "fraud-detector"
-          }
-          env {
-            name  = "MODEL_ALIAS"
-            value = "production"
-          }
-
-          resources {
-            requests = {
-              cpu    = "500m"
-              memory = "512Mi"
-            }
-            limits = {
-              cpu    = "1"
-              memory = "1Gi"
-            }
-          }
-
-          readiness_probe {
-            http_get {
-              path = "/health"
-              port = 8080
-            }
-            initial_delay_seconds = 30
-            period_seconds        = 5
-          }
-
-          liveness_probe {
-            http_get {
-              path = "/health"
-              port = 8080
-            }
-            initial_delay_seconds = 60
-            period_seconds        = 15
-          }
-        }
-      }
-    }
+  rule {
+    api_groups = ["serving.kserve.io"]
+    resources  = ["inferenceservices"]
+    verbs      = ["get", "list", "create", "update", "patch", "delete"]
   }
-
-  depends_on = [helm_release.mlflow]
 }
 
-resource "kubernetes_service" "fraud_detector" {
+resource "kubernetes_role_binding" "kfp_inferenceservice_user" {
   metadata {
-    name      = "fraud-detector"
-    namespace = kubernetes_namespace.mlflow.metadata[0].name
-    labels    = { app = "fraud-detector" }
+    name      = "kfp-inferenceservice-manager"
+    namespace = "user"
+  }
+  role_ref {
+    api_group = "rbac.authorization.k8s.io"
+    kind      = "ClusterRole"
+    name      = kubernetes_cluster_role.kfp_inferenceservice.metadata[0].name
+  }
+  subject {
+    kind      = "ServiceAccount"
+    name      = "pipeline-runner"
+    namespace = "kubeflow"
   }
 
-  spec {
-    type     = "LoadBalancer"
-    selector = { app = "fraud-detector" }
-
-    port {
-      name        = "http"
-      port        = 80
-      target_port = 8080
-    }
-  }
-
-  depends_on = [kubernetes_deployment.fraud_detector]
-}
-
-resource "kubernetes_horizontal_pod_autoscaler_v2" "fraud_detector" {
-  metadata {
-    name      = "fraud-detector"
-    namespace = kubernetes_namespace.mlflow.metadata[0].name
-  }
-
-  spec {
-    scale_target_ref {
-      api_version = "apps/v1"
-      kind        = "Deployment"
-      name        = kubernetes_deployment.fraud_detector.metadata[0].name
-    }
-
-    min_replicas = 1
-    max_replicas = 10
-
-    metric {
-      type = "Resource"
-      resource {
-        name = "cpu"
-        target {
-          type                = "Utilization"
-          average_utilization = 60
-        }
-      }
-    }
-  }
-
-  depends_on = [kubernetes_deployment.fraud_detector]
+  depends_on = [null_resource.default_profile]
 }

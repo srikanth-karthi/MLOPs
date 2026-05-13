@@ -111,3 +111,21 @@ variable "kfp_version" {
   type        = string
   default     = "2.14.4"
 }
+
+variable "notebooks_version" {
+  description = "Kubeflow Notebooks standalone version (git tag)"
+  type        = string
+  default     = "v1.11.0"
+}
+
+variable "jupyterhub_chart_version" {
+  description = "JupyterHub Helm chart version"
+  type        = string
+  default     = "3.3.8"
+}
+
+variable "cert_manager_version" {
+  description = "cert-manager release version (required by KServe webhooks)"
+  type        = string
+  default     = "v1.16.1"
+}

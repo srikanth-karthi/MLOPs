@@ -1,0 +1,28 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- github.com/kubeflow/manifests/applications/kserve/models-web-app/base?ref=v1.11.0
+
+patches:
+- patch: |-
+    $patch: delete
+    apiVersion: networking.istio.io/v1beta1
+    kind: VirtualService
+    metadata:
+      name: kserve-models-web-app
+      namespace: kserve
+- patch: |-
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: kserve-models-web-app
+      namespace: kserve
+    spec:
+      template:
+        spec:
+          containers:
+          - name: kserve-models-web-app
+            env:
+            - name: APP_PREFIX
+              value: /kserve-endpoints
