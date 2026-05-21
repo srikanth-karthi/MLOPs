@@ -63,6 +63,23 @@ resource "null_resource" "fraud_detector_service_monitor" {
   provisioner "local-exec" {
     command = <<-EOF
       kubectl apply -f - <<YAML
+      ---
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: fraud-detector-metrics
+        namespace: user
+        labels:
+          serving.kserve.io/inferenceservice: fraud-detector
+      spec:
+        selector:
+          serving.kserve.io/inferenceservice: fraud-detector
+        ports:
+          - name: metrics
+            port: 8080
+            targetPort: 8080
+            protocol: TCP
+      ---
       apiVersion: monitoring.coreos.com/v1
       kind: ServiceMonitor
       metadata:
@@ -73,12 +90,12 @@ resource "null_resource" "fraud_detector_service_monitor" {
       spec:
         namespaceSelector:
           matchNames:
-            - ${kubernetes_namespace.mlflow.metadata[0].name}
+            - user
         selector:
           matchLabels:
-            app: fraud-detector
+            serving.kserve.io/inferenceservice: fraud-detector
         endpoints:
-          - port: http
+          - port: metrics
             path: /metrics
             interval: 15s
       YAML

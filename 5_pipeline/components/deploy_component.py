@@ -138,12 +138,17 @@ def deploy(
     # Patch the InferenceService status URL to the real LB endpoint so
     # KServe Models web app shows the accessible URL instead of the default
     # "fraud-detector-user.example.com" domain template value.
+    # Uses the NGINX ingress controller LB (single cluster entry point).
     v1 = client.CoreV1Api()
     try:
-        svc = v1.read_namespaced_service("fraud-detector-nginx", "user")
-        lb_ingress = svc.status.load_balancer.ingress
-        if lb_ingress:
-            lb_hostname = lb_ingress[0].hostname or lb_ingress[0].ip
+        svcs = v1.list_namespaced_service("ingress-nginx")
+        lb_hostname = None
+        for svc in svcs.items:
+            ingress_list = (svc.status.load_balancer.ingress or []) if svc.status.load_balancer else []
+            if ingress_list:
+                lb_hostname = ingress_list[0].hostname or ingress_list[0].ip
+                break
+        if lb_hostname:
             external_url = f"http://{lb_hostname}/{deployment_name}"
             custom_api.patch_namespaced_custom_object_status(
                 GROUP, VER, namespace, PLURAL, deployment_name,
