@@ -13,8 +13,10 @@ def deploy(
     namespace: str = "user",
     canary_wait_seconds: int = 120,
 ) -> str:
+    import json
     import os
     import time
+    from datetime import datetime, timezone
 
     import mlflow
     from mlflow import MlflowClient
@@ -27,6 +29,76 @@ def deploy(
     mlflow.set_tracking_uri(mlflow_tracking_uri)
     mlflow_client = MlflowClient()
 
+    def _get_nginx_lb_hostname(v1):
+        """Read the real NGINX LB hostname from the ingress-nginx namespace."""
+        svcs = v1.list_namespaced_service("ingress-nginx")
+        for svc in svcs.items:
+            ingress_list = (svc.status.load_balancer.ingress or []) if svc.status.load_balancer else []
+            if ingress_list:
+                return ingress_list[0].hostname or ingress_list[0].ip
+        return None
+
+    def _ensure_kserve_ingress_config(v1, apps_v1, lb_hostname):
+        """
+        Ensure inferenceservice-config has the correct ingress settings for
+        path-based NGINX routing (no Istio, no example.com domain).
+
+        Patches the configmap and restarts kserve-controller-manager only if
+        something changed. Idempotent — safe to call on every deploy.
+
+        Required RBAC for pipeline-runner:
+          - configmaps: get, patch  (kubeflow namespace)
+          - deployments: patch      (kubeflow namespace)
+        """
+        try:
+            cm = v1.read_namespaced_config_map("inferenceservice-config", "kubeflow")
+            ingress = json.loads(cm.data.get("ingress", "{}"))
+
+            desired = {
+                "ingressDomain":          lb_hostname,
+                "domainTemplate":         "{{ .IngressDomain }}/{{ .Name }}",
+                "ingressClassName":       "nginx",
+                "disableIngressCreation": True,
+                "disableIstioVirtualHost": True,
+            }
+
+            changed = any(ingress.get(k) != v for k, v in desired.items())
+            if not changed:
+                print("inferenceservice-config already correct — no patch needed")
+                return
+
+            ingress.update(desired)
+            cm.data["ingress"] = json.dumps(ingress)
+            v1.patch_namespaced_config_map("inferenceservice-config", "kubeflow", cm)
+            print(f"Patched inferenceservice-config: ingressDomain={lb_hostname}, "
+                  f"disableIngressCreation=true, disableIstioVirtualHost=true")
+
+            # Rolling restart so the controller picks up the new config
+            restart_ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            apps_v1.patch_namespaced_deployment(
+                "kserve-controller-manager", "kubeflow",
+                {"spec": {"template": {"metadata": {"annotations": {
+                    "kubectl.kubernetes.io/restartedAt": restart_ts
+                }}}}},
+            )
+            print("Triggered kserve-controller-manager restart")
+
+            # Wait for controller to be available again before proceeding
+            deadline = time.time() + 120
+            while time.time() < deadline:
+                dep = apps_v1.read_namespaced_deployment(
+                    "kserve-controller-manager", "kubeflow"
+                )
+                if (dep.status.available_replicas or 0) >= 1:
+                    print("kserve-controller-manager ready")
+                    return
+                time.sleep(5)
+            print("Warning: kserve-controller-manager did not become ready within 120s — continuing anyway")
+
+        except ApiException as e:
+            # RBAC or transient error — log and continue; status URL patch will still be attempted
+            print(f"Warning: could not patch inferenceservice-config ({e.status}): {e.reason}")
+
     prev_production_version = None
     try:
         prev = mlflow_client.get_model_version_by_alias(model_name, "production")
@@ -36,11 +108,22 @@ def deploy(
         print("No existing @production version found")
 
     config.load_incluster_config()
+    v1        = client.CoreV1Api()
+    apps_v1   = client.AppsV1Api()
     custom_api = client.CustomObjectsApi()
 
     GROUP  = "serving.kserve.io"
     VER    = "v1beta1"
     PLURAL = "inferenceservices"
+
+    # Step 0: ensure KServe is configured for path-based NGINX routing.
+    # On a fresh cluster KServe installs with ingressDomain=example.com — this
+    # fixes it automatically so the status URL shows the real endpoint.
+    lb_hostname = _get_nginx_lb_hostname(v1)
+    if lb_hostname:
+        _ensure_kserve_ingress_config(v1, apps_v1, lb_hostname)
+    else:
+        print("Warning: could not resolve NGINX LB hostname — skipping config patch")
 
     bootstrapping = prev_production_version is None
     if bootstrapping:
@@ -135,19 +218,10 @@ def deploy(
             model_name, prev_production_version, "archived", "true"
         )
 
-    # Patch the InferenceService status URL to the real LB endpoint so
-    # KServe Models web app shows the accessible URL instead of the default
-    # "fraud-detector-user.example.com" domain template value.
-    # Uses the NGINX ingress controller LB (single cluster entry point).
-    v1 = client.CoreV1Api()
+    # Patch the InferenceService status URL to the real LB path so the
+    # KServe Models Web App shows a clickable, working link.
+    # lb_hostname was resolved at the top of this function.
     try:
-        svcs = v1.list_namespaced_service("ingress-nginx")
-        lb_hostname = None
-        for svc in svcs.items:
-            ingress_list = (svc.status.load_balancer.ingress or []) if svc.status.load_balancer else []
-            if ingress_list:
-                lb_hostname = ingress_list[0].hostname or ingress_list[0].ip
-                break
         if lb_hostname:
             external_url = f"http://{lb_hostname}/{deployment_name}"
             custom_api.patch_namespaced_custom_object_status(

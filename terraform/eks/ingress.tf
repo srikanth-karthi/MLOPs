@@ -262,6 +262,42 @@ resource "kubernetes_ingress_v1" "kubeflow_dashboard" {
   depends_on = [helm_release.nginx_ingress, null_resource.kubeflow_dashboard]
 }
 
+# Ingress — MLMD gRPC-Web (KFP UI calls this from the browser to fetch artifact lineage)
+# Without this rule NGINX returns 404 and the UI shows "Cannot get MLMD objects from Metadata store"
+
+resource "kubernetes_ingress_v1" "kubeflow_mlmd" {
+  metadata {
+    name      = "kubeflow-mlmd"
+    namespace = "kubeflow"
+    annotations = {
+      "kubernetes.io/ingress.class"                    = "nginx"
+      "nginx.ingress.kubernetes.io/backend-protocol"   = "GRPC"
+      "nginx.ingress.kubernetes.io/proxy-read-timeout" = "3600"
+      "nginx.ingress.kubernetes.io/proxy-send-timeout" = "3600"
+      "nginx.ingress.kubernetes.io/configuration-snippet" = "proxy_set_header kubeflow-userid \"user@example.com\";"
+    }
+  }
+
+  spec {
+    rule {
+      http {
+        path {
+          path      = "/ml_metadata.MetadataStoreService/"
+          path_type = "Prefix"
+          backend {
+            service {
+              name = "metadata-envoy-service"
+              port { number = 9090 }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  depends_on = [helm_release.nginx_ingress, null_resource.kubeflow_pipelines]
+}
+
 # KServe InferenceService for fraud-detector (replaces custom deployment)
 
 resource "null_resource" "fraud_detector_inference_service" {

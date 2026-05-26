@@ -66,6 +66,20 @@ resource "kubernetes_cluster_role" "kfp_deploy" {
     resources  = ["pods"]
     verbs      = ["get", "list", "watch"]
   }
+  # Required by deploy_component.py: _ensure_kserve_ingress_config reads and
+  # patches inferenceservice-config so the KServe controller uses the real
+  # NGINX LB hostname instead of example.com. Also lists services in
+  # ingress-nginx to resolve the LB hostname at deploy time.
+  rule {
+    api_groups = [""]
+    resources  = ["configmaps"]
+    verbs      = ["get", "patch"]
+  }
+  rule {
+    api_groups = [""]
+    resources  = ["services"]
+    verbs      = ["get", "list"]
+  }
 }
 
 resource "kubernetes_cluster_role_binding" "kfp_deploy" {
