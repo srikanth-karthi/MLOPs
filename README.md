@@ -34,7 +34,7 @@ Everything runs behind a single AWS Elastic Load Balancer. There are no separate
 ---
 
 ## Architecture Overview
-
+![alt text](image.png)
 ```
 ┌──────────────────────────────────────────────────────────────────────────────────┐
 │                                 AWS EKS Cluster                                  │
