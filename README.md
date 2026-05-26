@@ -63,7 +63,7 @@ Everything runs behind a single AWS Elastic Load Balancer. There are no separate
 │  ┌─────────────────────────────────────────────────────────────────────────┐     │
 │  │                     Kubeflow Pipelines DAG                              │     │
 │  │                                                                         │     │
-│  │   Tune → Train → Evaluate ──(fail)──▶ [stop]                           │     │
+│  │   Tune → Train → Evaluate ──(fail)──▶ [stop]                            │     │
 │  │                     │                                                   │     │
 │  │                  (pass)                                                 │     │
 │  │                     ▼                                                   │     │
@@ -81,13 +81,13 @@ Everything runs behind a single AWS Elastic Load Balancer. There are no separate
 │  │  Tracking Server   │  │  Native auth, Kale   │  │  7-panel fraud dashboard │  │
 │  │  Model Registry    │  │  for notebook→KFP    │  │  ServiceMonitor 15s      │  │
 │  │  S3 artifacts      │  └──────────────────────┘  └──────────────────────────┘  │
-│  └────────────────────┘                                                           │
+│  └────────────────────┘                                                          │
 │                                                                                  │
 │  ┌──────────────────────────────────────────────────────────────────────────┐    │
 │  │                             AWS Services                                 │    │
-│  │   S3 (model artifacts + training data)    EBS CSI (persistent volumes)  │    │
-│  │   IAM / IRSA (pod-level S3 access)        EKS Managed Node Groups       │    │
-│  │   cert-manager (KServe webhook TLS)       VPC with public+private nets  │    │
+│  │   S3 (model artifacts + training data)    EBS CSI (persistent volumes)   │    │
+│  │   IAM / IRSA (pod-level S3 access)        EKS Managed Node Groups        │    │
+│  │   cert-manager (KServe webhook TLS)       VPC with public+private nets   │    │
 │  └──────────────────────────────────────────────────────────────────────────┘    │
 └──────────────────────────────────────────────────────────────────────────────────┘
 ```
